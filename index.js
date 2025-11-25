@@ -1,12 +1,3 @@
-/**
- * FIX LỖI UNDICI (axios > 1.6 tự load undici → thiếu File/Blob)
- * Với axios 1.6.2 lỗi vẫn có thể xuất hiện tùy môi trường
- * → polyfill dưới đảm bảo chạy ổn định 100%
- */
-import { Blob } from "buffer";
-globalThis.Blob = Blob;
-globalThis.File = class File {};
-
 import express from "express";
 import axios from "axios";
 import * as cheerio from "cheerio";
@@ -14,7 +5,7 @@ import * as cheerio from "cheerio";
 const app = express();
 
 /* =========================================
-   1) API SEARCH ZINGMP3
+   1) SEARCH ZINGMP3
    ========================================= */
 app.get("/search", async (req, res) => {
   try {
@@ -23,16 +14,16 @@ app.get("/search", async (req, res) => {
 
     const url = `https://zingmp3.vn/tim-kiem/tat-ca?q=${encodeURIComponent(q)}`;
 
-    const response = await axios.get(url, {
+    const resp = await axios.get(url, {
       headers: {
         "User-Agent": "Mozilla/5.0",
         "Accept": "text/html"
       }
     });
 
-    const $ = cheerio.load(response.data);
+    const $ = cheerio.load(resp.data);
 
-    // ĐÚNG DOM THEO ẢNH BẠN CHỤP
+    // DOM đúng theo ảnh bạn gửi
     const first = $("div.media-content span.song-title-item a").first();
     const href = first.attr("href") || "";
 
@@ -46,11 +37,8 @@ app.get("/search", async (req, res) => {
       first.text().trim() ||
       "Unknown";
 
-    res.json({
-      encodeId,
-      title,
-      href
-    });
+    res.json({ encodeId, title, href });
+
   } catch (err) {
     console.error(err);
     res.json({ error: err.toString() });
@@ -58,7 +46,7 @@ app.get("/search", async (req, res) => {
 });
 
 /* =========================================
-   2) STREAMING LINK ZING
+   2) STREAM LINK ZING MP3
    ========================================= */
 app.get("/stream", async (req, res) => {
   try {
@@ -67,13 +55,12 @@ app.get("/stream", async (req, res) => {
 
     const api = `https://api.zingmp3.vn/api/v2/song/get/streaming?id=${id}&type=audio&_api=1`;
 
-    const response = await axios.get(api, {
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+    const resp = await axios.get(api, {
+      headers: { "User-Agent": "Mozilla/5.0" }
     });
 
-    res.json(response.data);
+    res.json(resp.data);
+
   } catch (err) {
     console.error(err);
     res.json({ error: err.toString() });
@@ -81,6 +68,6 @@ app.get("/stream", async (req, res) => {
 });
 
 /* =========================================
-   SERVER
+   START SERVER
    ========================================= */
 app.listen(3000, () => console.log("Zing API Server running on port 3000"));
