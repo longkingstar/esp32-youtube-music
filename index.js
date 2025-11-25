@@ -4,9 +4,6 @@ import * as cheerio from "cheerio";
 
 const app = express();
 
-/* =========================================
-   1) SEARCH ZINGMP3
-   ========================================= */
 app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
@@ -16,14 +13,12 @@ app.get("/search", async (req, res) => {
 
     const resp = await axios.get(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "text/html"
+        "User-Agent": "Mozilla/5.0"
       }
     });
 
     const $ = cheerio.load(resp.data);
 
-    // DOM đúng theo ảnh bạn gửi
     const first = $("div.media-content span.song-title-item a").first();
     const href = first.attr("href") || "";
 
@@ -32,42 +27,28 @@ app.get("/search", async (req, res) => {
 
     const encodeId = match[1];
 
-    const title =
-      first.find("div.title-wrapper").text().trim() ||
-      first.text().trim() ||
-      "Unknown";
-
-    res.json({ encodeId, title, href });
-
+    res.json({ encodeId, href });
   } catch (err) {
-    console.error(err);
     res.json({ error: err.toString() });
   }
 });
 
-/* =========================================
-   2) STREAM LINK ZING MP3
-   ========================================= */
 app.get("/stream", async (req, res) => {
   try {
     const id = req.query.id;
-    if (!id) return res.json({ error: "Missing id" });
 
-    const api = `https://api.zingmp3.vn/api/v2/song/get/streaming?id=${id}&type=audio&_api=1`;
+    const url = `https://api.zingmp3.vn/api/v2/song/get/streaming?id=${id}&type=audio&_api=1`;
 
-    const resp = await axios.get(api, {
+    const resp = await axios.get(url, {
       headers: { "User-Agent": "Mozilla/5.0" }
     });
 
     res.json(resp.data);
-
   } catch (err) {
-    console.error(err);
     res.json({ error: err.toString() });
   }
 });
 
-/* =========================================
-   START SERVER
-   ========================================= */
-app.listen(3000, () => console.log("Zing API Server running on port 3000"));
+app.listen(3000, () =>
+  console.log("Zing API Server running on port 3000")
+);
