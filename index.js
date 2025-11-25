@@ -1,5 +1,5 @@
 import express from "express";
-import { soundcloud, spotify, youtube } from "play-dl";
+import { youtube } from "play-dl";
 import ytSearch from "yt-search";
 
 const app = express();
@@ -7,26 +7,23 @@ const app = express();
 app.get("/play", async (req, res) => {
   try {
     const keyword = req.query.keyword;
-    if (!keyword)
-      return res.json({ error: "Missing keyword" });
+    if (!keyword) return res.json({ error: "Missing keyword" });
 
-    // 1. Search Youtube
-    const search = await ytSearch(keyword);
-    const video = search.videos[0];
-    if (!video)
-      return res.json({ error: "Video not found" });
+    // Search video
+    const r = await ytSearch(keyword);
+    const video = r.videos[0];
+    if (!video) return res.json({ error: "Video not found" });
 
-    // 2. Get audio stream URL via play-dl
+    // Get audio stream using play-dl (not ytdl-core)
     const info = await youtube(video.url);
 
-    const formats = info.streams.filter(s => s.audio);
-    if (!formats.length)
-      return res.json({ error: "No audio stream" });
+    const audio = info.streams.find(s => s.audio && !s.video);
+    if (!audio) return res.json({ error: "No audio stream" });
 
     res.json({
       title: info.title,
       thumbnail: info.thumbnails[0].url,
-      url: formats[0].url
+      url: audio.url
     });
 
   } catch (err) {
@@ -38,6 +35,4 @@ app.get("/play", async (req, res) => {
   }
 });
 
-app.listen(3000, () =>
-  console.log("YouTube Music API running on port 3000")
-);
+app.listen(3000, () => console.log("YouTube Music API running"));
