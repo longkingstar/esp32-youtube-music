@@ -1,27 +1,35 @@
 import express from "express";
-import { youtube } from "play-dl";
 import ytSearch from "yt-search";
+
+// Import play-dl (CommonJS)
+import playdl from "play-dl";
+const { youtube } = playdl;
 
 const app = express();
 
 app.get("/play", async (req, res) => {
   try {
     const keyword = req.query.keyword;
-    if (!keyword) return res.json({ error: "Missing keyword" });
+    if (!keyword)
+      return res.json({ error: "Missing keyword" });
 
-    // Search video
+    // 1. Search YouTube
     const r = await ytSearch(keyword);
     const video = r.videos[0];
-    if (!video) return res.json({ error: "Video not found" });
+    if (!video)
+      return res.json({ error: "Video not found" });
 
-    // Get audio stream using play-dl (not ytdl-core)
+    // 2. Get info via play-dl (This bypasses YouTube anti-bot)
     const info = await youtube(video.url);
 
+    // 3. Lấy audio stream
     const audio = info.streams.find(s => s.audio && !s.video);
-    if (!audio) return res.json({ error: "No audio stream" });
+    if (!audio)
+      return res.json({ error: "No audio stream" });
 
     res.json({
       title: info.title,
+      author: info.channel,
       thumbnail: info.thumbnails[0].url,
       url: audio.url
     });
@@ -35,4 +43,5 @@ app.get("/play", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("YouTube Music API running"));
+// Render uses port 3000
+app.listen(3000, () => console.log("YouTube Music API is running!"));
