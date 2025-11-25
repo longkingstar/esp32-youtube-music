@@ -4,42 +4,67 @@ import cheerio from "cheerio";
 
 const app = express();
 
-// simple search scrape: returns first encodeId found
-app.get('/search', async (req, res) => {
-  const q = req.query.q;
-  if (!q) return res.status(400).json({ error: 'Missing q' });
+// ========================
+// 1) SEARCH ZINGMP3
+// ========================
+app.get("/search", async (req, res) => {
   try {
+    const q = req.query.q;
+    if (!q) return res.json({ error: "Missing q" });
+
     const url = `https://zingmp3.vn/tim-kiem/tat-ca?q=${encodeURIComponent(q)}`;
-    const r = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    const $ = cheerio.load(r.data);
-    // find the first song item — selector may change; adjust if needed
-    const item = $('div.card-body a.item').first();
-    const href = item.attr('href') || '';
-    // href like /bai-hat/Ten-Bai/encodeId.html
-    const m = href.match(/\/bai-hat\/.*\/([A-Za-z0-9-_]+)/);
-    if (!m) return res.json({ error: 'not_found' });
-    const encodeId = m[1];
-    const title = item.find('.title').text().trim() || '';
-    const artist = item.find('.author').text().trim() || '';
-    return res.json({ encodeId, title, artist });
-  } catch (e) {
-    console.error(e.message);
-    return res.status(500).json({ error: e.message });
+
+    const response = await axios.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+
+    const $ = cheerio.load(response.data);
+
+    // ĐÚNG THEO HTML BẠN CHỤP
+    const first = $("div.media-content span.song-title-item a").first();
+    const href = first.attr("href") || "";
+
+    // Lấy encodeId từ .../ABC12345.html
+    const match = href.match(/\/([A-Za-z0-9]+)\.html/);
+    if (!match) return res.json({ error: "encodeId_not_found" });
+
+    const encodeId = match[1];
+    const title = first.find("div.title-wrapper").text().trim() || "";
+
+    res.json({
+      encodeId,
+      title,
+      href
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.json({ error: err.toString() });
   }
 });
 
-app.get('/stream', async (req, res) => {
-  const id = req.query.id;
-  if (!id) return res.status(400).json({ error: 'Missing id' });
+// ========================
+// 2) GET STREAM LINK
+// ========================
+app.get("/stream", async (req, res) => {
   try {
-    // call streaming API (public endpoint used by many mirrors)
+    const id = req.query.id;
+    if (!id) return res.json({ error: "Missing id" });
+
     const api = `https://api.zingmp3.vn/api/v2/song/get/streaming?type=audio&id=${id}&_api=1`;
-    const r = await axios.get(api, { headers: { 'User-Agent': 'Mozilla/5.0' } , timeout: 8000});
-    return res.json(r.data);
-  } catch (e) {
-    console.error(e.message);
-    return res.status(500).json({ error: e.message });
+
+    const response = await axios.get(api, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+
+    res.json(response.data);
+  } catch (err) {
+    console.error(err);
+    res.json({ error: err.toString() });
   }
 });
 
-app.listen(3000, () => console.log('Zing API listening'));
+// ========================
+// START SERVER
+// ========================
+app.listen(3000, () => console.log("Zing API Server running"));
