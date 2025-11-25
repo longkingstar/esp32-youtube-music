@@ -19,17 +19,8 @@ app.get("/search", async (req, res) => {
 
     const html = resp.data;
 
-    // Regex tìm bài hát đầu tiên
-    const match = html.match(/\/([A-Za-z0-9]{8})\.html/);
-
-    if (!match) return res.json({ error: "encodeId_not_found" });
-
-    const encodeId = match[1];
-
-    res.json({
-      encodeId,
-      href: `/bai-hat/${encodeId}.html`
-    });
+    // **CHỈ THAY CHỖ NÀY**
+    return res.send(html);
 
   } catch (err) {
     console.error(err);
