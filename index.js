@@ -1,9 +1,11 @@
 import express from "express";
 import axios from "axios";
-import * as cheerio from "cheerio";
 
 const app = express();
 
+/* =========================================
+   1) SEARCH ZING WITHOUT CHEERIO
+   ========================================= */
 app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
@@ -12,27 +14,33 @@ app.get("/search", async (req, res) => {
     const url = `https://zingmp3.vn/tim-kiem/tat-ca?q=${encodeURIComponent(q)}`;
 
     const resp = await axios.get(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+      headers: { "User-Agent": "Mozilla/5.0" }
     });
 
-    const $ = cheerio.load(resp.data);
+    const html = resp.data;
 
-    const first = $("div.media-content span.song-title-item a").first();
-    const href = first.attr("href") || "";
+    // Regex tìm bài hát đầu tiên
+    const match = html.match(/\/([A-Za-z0-9]{8})\.html/);
 
-    const match = href.match(/\/([A-Za-z0-9]+)\.html/);
     if (!match) return res.json({ error: "encodeId_not_found" });
 
     const encodeId = match[1];
 
-    res.json({ encodeId, href });
+    res.json({
+      encodeId,
+      href: `/bai-hat/${encodeId}.html`
+    });
+
   } catch (err) {
+    console.error(err);
     res.json({ error: err.toString() });
   }
 });
 
+
+/* =========================================
+   2) STREAM LINK
+   ========================================= */
 app.get("/stream", async (req, res) => {
   try {
     const id = req.query.id;
@@ -44,11 +52,16 @@ app.get("/stream", async (req, res) => {
     });
 
     res.json(resp.data);
+
   } catch (err) {
     res.json({ error: err.toString() });
   }
 });
 
-app.listen(3000, () =>
-  console.log("Zing API Server running on port 3000")
-);
+
+/* =========================================
+   SERVER
+   ========================================= */
+app.listen(3000, () => {
+  console.log("Zing API (no-cheerio) running!");
+});
