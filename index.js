@@ -1,9 +1,11 @@
 /**
- * FIX LỖI UNDICI (Node 18)
- * Zing + Axios tự import undici → thiếu File, Blob → crash
+ * FIX LỖI UNDICI (axios > 1.6 tự load undici → thiếu File/Blob)
+ * Với axios 1.6.2 lỗi vẫn có thể xuất hiện tùy môi trường
+ * → polyfill dưới đảm bảo chạy ổn định 100%
  */
-globalThis.File = class {};
-globalThis.Blob = class {};
+import { Blob } from "buffer";
+globalThis.Blob = Blob;
+globalThis.File = class File {};
 
 import express from "express";
 import axios from "axios";
@@ -30,7 +32,7 @@ app.get("/search", async (req, res) => {
 
     const $ = cheerio.load(response.data);
 
-    // LẤY THEO ĐÚNG DOM BẠN GỬI ẢNH CHỤP
+    // ĐÚNG DOM THEO ẢNH BẠN CHỤP
     const first = $("div.media-content span.song-title-item a").first();
     const href = first.attr("href") || "";
 
@@ -56,7 +58,7 @@ app.get("/search", async (req, res) => {
 });
 
 /* =========================================
-   2) API STREAMING LINK ZING
+   2) STREAMING LINK ZING
    ========================================= */
 app.get("/stream", async (req, res) => {
   try {
@@ -79,6 +81,6 @@ app.get("/stream", async (req, res) => {
 });
 
 /* =========================================
-   START SERVER
+   SERVER
    ========================================= */
 app.listen(3000, () => console.log("Zing API Server running on port 3000"));
