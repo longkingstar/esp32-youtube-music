@@ -1,8 +1,7 @@
 services:
   - type: web
-    name: esp32-youtube-music
+    name: esp32-youtube-server
     env: node
     plan: free
     buildCommand: "npm install"
-    startCommand: "npm start"
-    autoDeploy: true
+    startCommand: "node index.js"
