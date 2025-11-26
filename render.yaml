@@ -3,5 +3,6 @@ services:
     name: esp32-youtube-server
     env: node
     plan: free
+    region: oregon
     buildCommand: "npm install"
     startCommand: "node index.js"
