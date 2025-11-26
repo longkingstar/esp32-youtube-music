@@ -1,8 +1,10 @@
 services:
   - type: web
-    name: esp32-youtube-server
+    name: yt-audio-server
     env: node
-    plan: free
-    region: oregon
     buildCommand: "npm install"
     startCommand: "node index.js"
+    plan: free
+    envVars:
+      - key: YT_COOKIE
+        value: ""
