@@ -7,20 +7,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// CONFIG — chỉ còn 2 upstream hoạt động
+// CONFIG — chỉ còn 1 upstream stable
 const PORT = process.env.PORT || 3000;
 
-const UPSTREAMS = [
-  "https://zingmp3-api.vercel.app",
-  "https://mp3.zingmp3.workers.dev"
-];
-
-const UPSTREAM = process.env.UPSTREAM_BASE || UPSTREAMS[0];
+const UPSTREAM = "https://zingmp3-api.vercel.app";
 
 // Cache 30 giây
 const cache = new NodeCache({ stdTTL: 30 });
 
-// HTTP client
 const axiosInstance = axios.create({
   timeout: 7000,
   headers: {
@@ -29,66 +23,58 @@ const axiosInstance = axios.create({
   }
 });
 
-// hàm gọi upstream có fallback
+// Call upstream with cache
 async function upstreamGet(path, params = {}) {
   const cacheKey = `u:${path}:${JSON.stringify(params)}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  let lastErr = null;
-  const candidates = [UPSTREAM, ...UPSTREAMS.filter(u => u !== UPSTREAM)];
+  const url = new URL(path, UPSTREAM).toString();
+  const resp = await axiosInstance.get(url, { params });
 
-  for (const base of candidates) {
-    try {
-      const url = new URL(path, base).toString();
-      const resp = await axiosInstance.get(url, { params });
-
-      if (resp?.data) {
-        cache.set(cacheKey, resp.data);
-        return resp.data;
-      }
-    } catch (err) {
-      lastErr = err;
-      // thử tiếp mirror khác
-    }
+  if (resp?.data) {
+    cache.set(cacheKey, resp.data);
+    return resp.data;
   }
 
-  throw lastErr || new Error("All upstreams failed");
+  throw new Error("Invalid upstream response");
 }
 
 //===========================
 // SEARCH
 //===========================
 app.get("/search", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.status(400).json({ error: "missing_q" });
-
   try {
+    const q = (req.query.q || "").trim();
+    if (!q) return res.json({ error: "missing_q" });
+
     const data = await upstreamGet("/api/search", { query: q });
     const items = data.items || data.data || [];
 
-    const normalized = items.map(it => ({
-      encodeId: it.encodeId,
-      title: it.title,
-      artistsNames: it.artistsNames,
-      thumbnail: it.thumbnailM || it.thumbnail,
-      duration: it.duration
-    })).filter(x => x.encodeId);
+    const out = items
+      .map(item => ({
+        encodeId: item.encodeId,
+        title: item.title,
+        artistsNames: item.artistsNames,
+        thumbnail: item.thumbnailM || item.thumbnail,
+        duration: item.duration
+      }))
+      .filter(x => x.encodeId);
 
-    res.json(normalized.slice(0, 10));
+    res.json(out);
   } catch (err) {
-    res.status(500).json({ error: "upstream_error", detail: err.toString() });
+    res.json({ error: "upstream_error", detail: err.toString() });
   }
 });
 
 //===========================
-// SONG STREAMING
+// SONG
 //===========================
 app.get("/song", async (req, res) => {
-  const id = (req.query.id || "").trim();
-  if (!id) return res.status(400).json({ error: "missing_id" });
-
   try {
+    const id = (req.query.id || "").trim();
+    if (!id) return res.json({ error: "missing_id" });
+
     const data = await upstreamGet("/api/song", { id });
     const d = data.data || {};
 
@@ -103,25 +89,25 @@ app.get("/song", async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: "upstream_error", detail: err.toString() });
+    res.json({ error: "upstream_error", detail: err.toString() });
   }
 });
 
 //===========================
-// PLAY (search → stream)
+// PLAY
 //===========================
 app.get("/play", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (!q) return res.status(400).json({ error: "missing_q" });
-
   try {
-    const list = await upstreamGet("/api/search", { query: q });
-    const items = list.items || [];
+    const q = (req.query.q || "").trim();
+    if (!q) return res.json({ error: "missing_q" });
 
-    if (!items.length) return res.json({ error: "not_found" });
+    const data = await upstreamGet("/api/search", { query: q });
+    const items = data.items || [];
 
-    const first = items[0];
-    const encodeId = first.encodeId;
+    if (items.length === 0)
+      return res.json({ error: "not_found" });
+
+    const encodeId = items[0].encodeId;
 
     const songData = await upstreamGet("/api/song", { id: encodeId });
     const d = songData.data || {};
@@ -136,12 +122,13 @@ app.get("/play", async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: "upstream_error", detail: err.toString() });
+    res.json({ error: "upstream_error", detail: err.toString() });
   }
 });
 
+app.get("/", (req, res) => res.send("longking-music API OK"));
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-app.listen(PORT, () => {
-  console.log(`longking-music API running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`longking-music API running on port ${PORT}`)
+);
