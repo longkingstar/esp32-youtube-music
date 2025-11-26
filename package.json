@@ -1,8 +1,9 @@
 {
-  "name": "yt-audio-server",
+  "name": "esp32-youtube-server",
+  "version": "1.0.0",
   "type": "module",
   "dependencies": {
     "express": "^4.18.2",
-    "youtubei.js": "^16.0.1"
+    "youtubei.js": "14.1.0"
   }
 }
