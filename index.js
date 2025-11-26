@@ -36,12 +36,27 @@ app.get("/search", async (req, res) => {
   if (!q) return res.json({ error: "missing_q" });
 
   try {
-    const data = await zingApi("/v2/search", { q });
-    res.json(data.data.songs);
+    const data = await zingApi("/v2/search/multi", { q });
+
+    const result = data.data || {};
+
+    // Ưu tiên bài hát
+    if (result.songs && result.songs.length > 0) {
+      return res.json(result.songs);
+    }
+
+    // Nếu không có songs → fallback vào top item
+    if (result.top && result.top.length > 0) {
+      return res.json(result.top);
+    }
+
+    return res.json({ error: "no_result" });
+
   } catch (err) {
     res.json({ error: err.toString() });
   }
 });
+
 
 // GET SONG STREAM URL
 app.get("/song", async (req, res) => {
