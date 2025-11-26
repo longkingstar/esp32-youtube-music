@@ -1,56 +1,63 @@
 import express from "express";
 import axios from "axios";
-import cors from "cors";
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// ZingMP3 API KEY
-const API_KEY = "88265e23"; // key public ai cũng dùng được
-
-// Function gọi API Zing
-async function zingApi(path, params = {}) {
-  const url = "https://zingmp3.vn/api" + path;
-
-  const response = await axios.get(url, {
-    headers: {
-      "Content-Type": "application/json",
-      "Referer": "https://zingmp3.vn/",
-      "Origin": "https://zingmp3.vn/",
-      "User-Agent": "Mozilla/5.0"
-    },
-    params: {
-      ...params,
-      apiKey: API_KEY,
-      ctime: Math.floor(Date.now() / 1000)
-    }
-  });
-
-  return response.data;
-}
-
-// SEARCH
+/*==========================================
+  TÌM KIẾM TỪ ZINGMP3 MOBILE HTML
+==========================================*/
 app.get("/search", async (req, res) => {
-  const q = req.query.q;
-  if (!q) return res.json({ error: "missing_q" });
-
   try {
-    const data = await zingApi("/v2/search/multi", { q });
+    const q = req.query.q;
+    if (!q) return res.json({ error: "missing_q" });
 
-    const result = data.data || {};
+    const url = `https://m.zingmp3.vn/tim-kiem/tat-ca?q=${encodeURIComponent(q)}`;
+    
+    const resp = await axios.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
 
-    // Ưu tiên bài hát
-    if (result.songs && result.songs.length > 0) {
-      return res.json(result.songs);
+    const html = resp.data;
+
+    // Regex tìm tất cả encodeId kiểu ZxxxZZxx.html
+    const regex = /\/([A-Z0-9]{8})\.html/g;
+
+    const results = [];
+    let match;
+
+    while ((match = regex.exec(html)) !== null) {
+      results.push({ encodeId: match[1] });
     }
 
-    // Nếu không có songs → fallback vào top item
-    if (result.top && result.top.length > 0) {
-      return res.json(result.top);
+    if (results.length === 0) {
+      return res.json({ error: "no_result" });
     }
 
-    return res.json({ error: "no_result" });
+    res.json(results);
+
+  } catch (err) {
+    console.error(err);
+    res.json({ error: err.toString() });
+  }
+});
+
+
+/*==========================================
+  LẤY LINK STREAM NHẠC KHÔNG CẦN SIG
+  (dùng API open-source của cộng đồng)
+==========================================*/
+app.get("/stream", async (req, res) => {
+  try {
+    const id = req.query.id;
+    if (!id) return res.json({ error: "missing_id" });
+
+    const url = `https://api.mp3.zing.vn/api/streaming/audio/${id}/320`;
+
+    const resp = await axios.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+
+    res.json({ url: resp.request.res.responseUrl });
 
   } catch (err) {
     res.json({ error: err.toString() });
@@ -58,20 +65,9 @@ app.get("/search", async (req, res) => {
 });
 
 
-// GET SONG STREAM URL
-app.get("/song", async (req, res) => {
-  const id = req.query.id;
-  if (!id) return res.json({ error: "missing_id" });
-
-  try {
-    const data = await zingApi("/v2/song/get/streaming", { id });
-    res.json(data.data);
-  } catch (err) {
-    res.json({ error: err.toString() });
-  }
-});
-
-// SERVER START
+/*==========================================
+  SERVER START
+==========================================*/
 app.listen(3000, () => {
-  console.log("longking-music API running on port 3000");
+  console.log("Zing HTML Search API running!");
 });
