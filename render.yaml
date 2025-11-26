@@ -2,9 +2,10 @@ services:
   - type: web
     name: yt-audio-server
     env: node
+    runtime: node
     buildCommand: "npm install"
     startCommand: "node index.js"
     plan: free
     envVars:
-      - key: YT_COOKIE
-        value: ""
+      - key: NODE_VERSION
+        value: 20
