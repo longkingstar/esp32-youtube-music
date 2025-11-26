@@ -2,8 +2,10 @@
   "name": "esp32-youtube-server",
   "version": "1.0.0",
   "type": "module",
+  "main": "index.js",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "youtubei.js": "^6.0.0"
+    "youtubei.js": "^6.4.1"
   }
 }
