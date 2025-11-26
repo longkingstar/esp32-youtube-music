@@ -1,45 +1,62 @@
 import express from "express";
-import { Innertube } from "youtubei.js";
+import axios from "axios";
+import cors from "cors";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-let yt;
+// ZingMP3 API KEY
+const API_KEY = "88265e23"; // key public ai cũng dùng được
 
-// Khởi động youtubei.js
-(async () => {
-  yt = await Innertube.create({
-    location: "VN",
-    cookie: process.env.YT_COOKIE || ""
+// Function gọi API Zing
+async function zingApi(path, params = {}) {
+  const url = "https://zingmp3.vn/api" + path;
+
+  const response = await axios.get(url, {
+    headers: {
+      "Content-Type": "application/json",
+      "Referer": "https://zingmp3.vn/",
+      "Origin": "https://zingmp3.vn/",
+      "User-Agent": "Mozilla/5.0"
+    },
+    params: {
+      ...params,
+      apiKey: API_KEY,
+      ctime: Math.floor(Date.now() / 1000)
+    }
   });
-})();
 
-/* STREAM AUDIO */
-app.get("/audio", async (req, res) => {
+  return response.data;
+}
+
+// SEARCH
+app.get("/search", async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json({ error: "missing_q" });
+
   try {
-    const id = req.query.id;
-    if (!id) return res.json({ error: "missing_id" });
-
-    const info = await yt.getInfo(id);
-
-    const audio = info.streaming_data?.adaptive_formats?.find(
-      x => x.mime_type.includes("audio")
-    );
-
-    if (!audio) return res.json({ error: "no_audio" });
-
-    res.json({
-      url: audio.url,
-      bitrate: audio.bitrate,
-      mime: audio.mime_type
-    });
-
+    const data = await zingApi("/v2/search", { q });
+    res.json(data.data.songs);
   } catch (err) {
     res.json({ error: err.toString() });
   }
 });
 
-/* TEST */
-app.get("/", (req, res) => res.send("YouTube Audio Server OK"));
+// GET SONG STREAM URL
+app.get("/song", async (req, res) => {
+  const id = req.query.id;
+  if (!id) return res.json({ error: "missing_id" });
 
-app.listen(3000, () => console.log("Server running"));
+  try {
+    const data = await zingApi("/v2/song/get/streaming", { id });
+    res.json(data.data);
+  } catch (err) {
+    res.json({ error: err.toString() });
+  }
+});
+
+// SERVER START
+app.listen(3000, () => {
+  console.log("longking-music API running on port 3000");
+});
